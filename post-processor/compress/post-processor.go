@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 
+	"github.com/biogo/hts/bgzf"
 	"github.com/klauspost/pgzip"
 	"github.com/mitchellh/packer/common"
 	"github.com/mitchellh/packer/helper/config"
@@ -36,6 +37,7 @@ type Config struct {
 
 	// Fields from config file
 	OutputPath        string `mapstructure:"output"`
+	Format            string `mapstructure:"format"`
 	CompressionLevel  int    `mapstructure:"compression_level"`
 	KeepInputArtifact bool   `mapstructure:"keep_input_artifact"`
 
@@ -126,6 +128,11 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	// compression writer. Otherwise it's just a file.
 	var output io.WriteCloser
 	switch p.config.Algorithm {
+	case "bgzf":
+		ui.Say(fmt.Sprintf("Using bgzf compression with %d cores for %s",
+			runtime.GOMAXPROCS(-1), target))
+		output, err = makeBGZFWriter(outputFile, p.config.CompressionLevel)
+		defer output.Close()
 	case "lz4":
 		ui.Say(fmt.Sprintf("Using lz4 compression with %d cores for %s",
 			runtime.GOMAXPROCS(-1), target))
@@ -190,15 +197,21 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 }
 
 func (config *Config) detectFromFilename() {
+	var result [][]string
 
 	extensions := map[string]string{
-		"tar": "tar",
-		"zip": "zip",
-		"gz":  "pgzip",
-		"lz4": "lz4",
+		"tar":  "tar",
+		"zip":  "zip",
+		"gz":   "pgzip",
+		"lz4":  "lz4",
+		"bgzf": "bgzf",
 	}
 
-	result := filenamePattern.FindAllStringSubmatch(config.OutputPath, -1)
+	if config.Format == "" {
+		result = filenamePattern.FindAllStringSubmatch(config.OutputPath, -1)
+	} else {
+		result = filenamePattern.FindAllStringSubmatch(config.Format, -1)
+	}
 
 	// No dots. Bail out with defaults.
 	if len(result) == 0 {
@@ -238,6 +251,14 @@ func (config *Config) detectFromFilename() {
 	config.Algorithm = "pgzip"
 	config.Archive = "tar"
 	return
+}
+
+func makeBGZFWriter(output io.WriteCloser, compressionLevel int) (io.WriteCloser, error) {
+	bgzfWriter, err := bgzf.NewWriterLevel(output, compressionLevel, runtime.GOMAXPROCS(-1))
+	if err != nil {
+		return nil, ErrInvalidCompressionLevel
+	}
+	return bgzfWriter, nil
 }
 
 func makeLZ4Writer(output io.WriteCloser, compressionLevel int) (io.WriteCloser, error) {
