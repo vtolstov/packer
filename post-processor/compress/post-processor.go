@@ -214,7 +214,7 @@ func (config *Config) detectFromFilename() {
 	if config.Format == "" {
 		result = filenamePattern.FindAllStringSubmatch(config.OutputPath, -1)
 	} else {
-		result = filenamePattern.FindAllStringSubmatch(config.Format, -1)
+		result = filenamePattern.FindAllStringSubmatch(fmt.Sprintf("%s.%s", config.OutputPath, config.Format), -1)
 	}
 
 	// No dots. Bail out with defaults.
