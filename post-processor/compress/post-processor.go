@@ -37,6 +37,7 @@ type Config struct {
 
 	// Fields from config file
 	OutputPath        string `mapstructure:"output"`
+	Format            string `mapstructure:"format"`
 	CompressionLevel  int    `mapstructure:"compression_level"`
 	KeepInputArtifact bool   `mapstructure:"keep_input_artifact"`
 
@@ -196,6 +197,7 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 }
 
 func (config *Config) detectFromFilename() {
+	var result [][]string
 
 	extensions := map[string]string{
 		"tar":  "tar",
@@ -205,7 +207,11 @@ func (config *Config) detectFromFilename() {
 		"bgzf": "bgzf",
 	}
 
-	result := filenamePattern.FindAllStringSubmatch(config.OutputPath, -1)
+	if config.Format == "" {
+		result = filenamePattern.FindAllStringSubmatch(config.OutputPath, -1)
+	} else {
+		result = filenamePattern.FindAllStringSubmatch(config.Format, -1)
+	}
 
 	// No dots. Bail out with defaults.
 	if len(result) == 0 {
