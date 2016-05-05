@@ -117,6 +117,10 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 	keep := p.config.KeepInputArtifact
 	newArtifact := &Artifact{Path: target}
 
+	if err = os.MkdirAll(filepath.Dir(target), os.FileMode(0755)); err != nil {
+		return nil, false, fmt.Errorf(
+			"Unable to create dir for archive %s: %s", target, err)
+	}
 	outputFile, err := os.Create(target)
 	if err != nil {
 		return nil, false, fmt.Errorf(
