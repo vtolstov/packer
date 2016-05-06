@@ -85,7 +85,7 @@ func getHash(t string) hash.Hash {
 func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (packer.Artifact, bool, error) {
 	files := artifact.Files()
 	var h hash.Hash
-	var filename string
+	var checksumFile string
 
 	newartifact := NewArtifact(artifact.Files())
 
@@ -93,14 +93,18 @@ func (p *PostProcessor) PostProcess(ui packer.Ui, artifact packer.Artifact) (pac
 		h = getHash(ct)
 
 		for _, art := range files {
-			checksumFile := filepath.Join(filepath.Dir(art), ct+"sums")
+			if p.config.OutputPath == "" {
+				checksumFile = filepath.Join(filepath.Dir(art), ct+"sums")
+			} else {
+				checksumFile = p.config.OutputPath
+			}
 			if _, err := os.Stat(checksumFile); err != nil {
 				newartifact.files = append(newartifact.files, checksumFile)
 			}
 
 			fw, err := os.OpenFile(checksumFile, os.O_WRONLY|os.O_APPEND|os.O_CREATE, os.FileMode(0644))
 			if err != nil {
-				return nil, false, fmt.Errorf("unable to create file %s: %s", filename, err.Error())
+				return nil, false, fmt.Errorf("unable to create file %s: %s", checksumFile, err.Error())
 			}
 			fr, err := os.Open(art)
 			if err != nil {
