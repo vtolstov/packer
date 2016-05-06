@@ -21,7 +21,8 @@ type Config struct {
 	common.PackerConfig `mapstructure:",squash"`
 
 	Keep          bool     `mapstructure:"keep_input_artifact"`
-	ChecksumTypes []string `mapstructure:"types"`
+	ChecksumTypes []string `mapstructure:"checksum_type"`
+	OutputPath    string   `mapstructure:"output"`
 	ctx           interpolate.Context
 }
 
@@ -42,6 +43,21 @@ func (p *PostProcessor) Configure(raws ...interface{}) error {
 
 	if p.config.ChecksumTypes == nil {
 		p.config.ChecksumTypes = []string{"md5"}
+	}
+
+	if p.config.OutputPath == "" {
+		p.config.OutputPath = "packer_{{.BuildName}}_{{.BuilderType}}" + ".checksum"
+	}
+
+	errs := new(packer.MultiError)
+
+	if err = interpolate.Validate(p.config.OutputPath, &p.config.ctx); err != nil {
+		errs = packer.MultiErrorAppend(
+			errs, fmt.Errorf("Error parsing target template: %s", err))
+	}
+
+	if len(errs.Errors) > 0 {
+		return errs
 	}
 
 	return nil
