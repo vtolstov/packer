@@ -170,6 +170,9 @@ func getArchive(src string, dst string, stripComponents int) error {
                                         }
                                 }
                         }
+                        if f.Name == "." || f.Name == "" {
+                                continue
+                        }
                         cf, err := f.Open()
                         if err != nil {
                                 return err
