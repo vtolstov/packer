@@ -177,8 +177,8 @@ func getArchive(src string, dst string, stripComponents int) error {
                         if name == "." || name == "" {
                                 continue
                         }
-                        if f.Mode().IsDir()() {
-                                if err = os.MkdirAll(path, f.Mode()); err != nil {
+                        if f.Mode().IsDir() {
+                                if err = os.MkdirAll(name, f.Mode()); err != nil {
                                         return err
                                 }
                         } else {
