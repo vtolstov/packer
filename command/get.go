@@ -9,6 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+        "time"
+        "net"
+        "crypto/tls"
+        "archive/zip"
+        "net/http"
 	git "gopkg.in/src-d/go-git.v3"
 )
 
@@ -19,9 +24,10 @@ type GetCommand struct {
 
 func (c *GetCommand) Help() string {
 	helpText := `
-Usage: packer get [options] repository
+Usage: packer get [options] repository template
 
   Get remote repository to local dir at specified revision if it present.
+  Optional run build with specific template.
 
 Options:
 
@@ -79,15 +85,18 @@ func (c *GetCommand) Run(args []string) int {
 	}
 	switch u.Scheme {
 	default:
-		fmt.Printf("scheme %q not supported", u.Scheme)
+		switch filepath.Ext(u.Path) {
+		default:
+			err = fmt.Errorf("scheme %q not supported", u.Scheme)
+		case ".zip", ".tar":
+			err = getArchive(remote, dest, 1)
+		}
 	case "git", "git+http", "git+https":
-		if strings.HasPrefix(remote, "git+") {
-			remote = remote[4:]
-		}
-		if err = getGit(remote, dest); err != nil {
-			fmt.Printf("err: %s\n", err.Error())
-			return 2
-		}
+		err = getGit(remote, dest)
+	}
+	if err != nil {
+		fmt.Printf("err: %s\n", err.Error())
+		return 2
 	}
 
 	if !keep {
@@ -116,13 +125,93 @@ func (c *GetCommand) Synopsis() string {
 	return "Get template from remote location and built it"
 }
 
+func getArchive(src string, dst string, stripComponents int) error {
+        tmp, err := ioutil.TempFile("", "packer-get")
+        if err != nil {
+                return err
+        }
+        defer tmp.Close()
+        defer os.Remove(tmp.Name())
+
+
+        httpTransport := &http.Transport{
+                Dial:            (&net.Dialer{DualStack: true}).Dial,
+                TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+        }
+        httpClient := &http.Client{Transport: httpTransport, Timeout: 30 * time.Second}
+        
+        res, err := httpClient.Get(src)
+        if err != nil {
+                return err
+        } else if res.Body == nil {
+                return fmt.Errorf("Empty response Body")
+        }
+        n, err := io.Copy(tmp, res.Body)
+        res.Body.Close()
+        if err != nil {
+                return err
+        }
+        u, _ := url.Parse(src)
+        switch filepath.Ext(u.Path) {
+        case ".zip":
+                cr, err  := zip.NewReader(tmp, n)
+                if err != nil {
+                        return err
+                }
+                for _, f := range cr.File {
+                        cf, err := f.Open()
+                        if err != nil {
+                                return err
+                        }
+                        path := filepath.Dir(filepath.Join(dst, f.Name))
+                        if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
+                                       return err
+                        }
+                        
+                        df, err := os.OpenFile(filepath.Join(path, filepath.Base(f.Name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
+                        if err != nil {
+                                return err
+                        }
+                        _, err = io.Copy(df, cf)
+                        if err != nil {
+                                df.Close()
+                                cf.Close()
+                                return err
+                        }
+                        df.Close()
+                        cf.Close()
+                }
+        }
+        return nil
+}
+
 func getGit(src string, dst string) error {
-	repo, err := git.NewRepository(src, nil)
+	var remote, ref string
+
+	u, err := url.Parse(src)
+	if err != nil {
+		return err
+	}
+	if strings.HasPrefix(src, "git+") {
+		src = src[4:]
+	}
+	if idx := strings.Index(u.Path, "@"); idx > 0 {
+		ref = u.Path[idx:]
+		u.Path = u.Path[:idx]
+	}
+	remote = u.String()
+
+	repo, err := git.NewRepository(remote, nil)
 	if err != nil {
 		return err
 	}
 
-	if err := repo.Pull(git.DefaultRemoteName, "refs/heads/master"); err != nil {
+	if ref == "" {
+		err = repo.PullDefault()
+	} else {
+		err = repo.Pull(git.DefaultRemoteName, "refs/heads/"+ref)
+	}
+	if err != nil {
 		return err
 	}
 
