@@ -33,9 +33,10 @@ Usage: packer get [options] repository template
 Options:
 
   -d=path                Destination dir to put files.
-  -r=https://xxx.xx      Remote location to fetch
+  -r=string              Remote location to fetch
   -k=false               Keep destination dir after build
   -f=false               Only fetch template
+  -s=int                 Strip components
 `
 
 	return strings.TrimSpace(helpText)
@@ -44,6 +45,7 @@ Options:
 func (c *GetCommand) Run(args []string) int {
 	var dest, remote string
 	var keep, fetch bool
+	var strip int
 	var err error
 
 	flags := c.Meta.FlagSet("get", FlagSetVars)
@@ -52,6 +54,8 @@ func (c *GetCommand) Run(args []string) int {
 	flags.StringVar(&remote, "r", "", "r")
 	flags.BoolVar(&fetch, "f", false, "f")
 	flags.BoolVar(&keep, "k", false, "k")
+	flags.IntVar(&strip, "s", 0, "s")
+
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -92,7 +96,7 @@ func (c *GetCommand) Run(args []string) int {
 		default:
 			err = fmt.Errorf("scheme %q not supported", u.Scheme)
 		case ".zip", ".tar":
-			err = getArchive(remote, dest, 1)
+			err = getArchive(remote, dest, strip)
 		}
 	case "git", "git+http", "git+https":
 		err = getGit(remote, dest)
