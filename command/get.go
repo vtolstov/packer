@@ -150,7 +150,7 @@ func getArchive(src string, dst string, stripComponents int) error {
         }
         n, err := io.Copy(tmp, res.Body)
         res.Body.Close()
-        tmp.Flush()
+        tmp.Sync()
         if err != nil {
                 return err
         }
