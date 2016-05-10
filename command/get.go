@@ -167,7 +167,7 @@ func getArchive(src string, dst string, stripComponents int) error {
                         for idx := 0; idx < stripComponents; idx ++ {
                                 for idxCh, ch := range name {
                                         if ch == filepath.Separator {
-                                                name = name[idxCh:]
+                                                name = name[idxCh+1:]
                                                 break
                                         }
                                 }
