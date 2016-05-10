@@ -162,27 +162,32 @@ func getArchive(src string, dst string, stripComponents int) error {
                         return err
                 }
                 for _, f := range cr.File {
+                        name := f.Name
+                        fmt.Printf("1 %s\n", name)
                         for idx := 0; idx < stripComponents; idx ++ {
-                                for idxCh, ch := range f.Name {
+                                for idxCh, ch := range name {
                                         if ch == filepath.Separator {
-                                                f.Name = f.Name[idxCh:]
+                                                name = name[idxCh:]
                                                 break
                                         }
                                 }
                         }
-                        if f.Name == "." || f.Name == "" {
+
+                        fmt.Printf("2 %s\n", name)
+                        if name == "." || name == "" {
                                 continue
                         }
                         cf, err := f.Open()
                         if err != nil {
                                 return err
                         }
-                        path := filepath.Dir(filepath.Join(dst, f.Name))
+                        
+                        path := filepath.Dir(filepath.Join(dst, name))
                         if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
                                        return err
                         }
                         
-                        df, err := os.OpenFile(filepath.Join(path, filepath.Base(f.Name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
+                        df, err := os.OpenFile(filepath.Join(path, filepath.Base(name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
                         if err != nil {
                                 return err
                         }
