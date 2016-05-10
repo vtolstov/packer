@@ -85,6 +85,8 @@ func (c *GetCommand) Run(args []string) int {
 	}
 	switch u.Scheme {
 	default:
+                err = fmt.Errorf("scheme %q not supported", u.Scheme)
+        case "http", "https":
 		switch filepath.Ext(u.Path) {
 		default:
 			err = fmt.Errorf("scheme %q not supported", u.Scheme)
@@ -148,6 +150,7 @@ func getArchive(src string, dst string, stripComponents int) error {
         }
         n, err := io.Copy(tmp, res.Body)
         res.Body.Close()
+        tmp.Flush()
         if err != nil {
                 return err
         }
@@ -159,6 +162,14 @@ func getArchive(src string, dst string, stripComponents int) error {
                         return err
                 }
                 for _, f := range cr.File {
+                        for idx := 0; idx < stripComponents; idx ++ {
+                                for idxCh, ch := range f.Name {
+                                        if ch == filepath.Separator {
+                                                f.Name = f.Name[idxCh:]
+                                                break
+                                        }
+                                }
+                        }
                         cf, err := f.Open()
                         if err != nil {
                                 return err
