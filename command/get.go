@@ -9,11 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-        "time"
-        "net"
-        "crypto/tls"
-        "archive/zip"
-        "net/http"
+	"archive/zip"
+	"crypto/tls"
+	"net"
+	"net/http"
+	"time"
+
 	git "gopkg.in/src-d/go-git.v3"
 )
 
@@ -85,8 +86,8 @@ func (c *GetCommand) Run(args []string) int {
 	}
 	switch u.Scheme {
 	default:
-                err = fmt.Errorf("scheme %q not supported", u.Scheme)
-        case "http", "https":
+		err = fmt.Errorf("scheme %q not supported", u.Scheme)
+	case "http", "https":
 		switch filepath.Ext(u.Path) {
 		default:
 			err = fmt.Errorf("scheme %q not supported", u.Scheme)
@@ -128,84 +129,80 @@ func (c *GetCommand) Synopsis() string {
 }
 
 func getArchive(src string, dst string, stripComponents int) error {
-        tmp, err := ioutil.TempFile("", "packer-get")
-        if err != nil {
-                return err
-        }
-        defer tmp.Close()
-        defer os.Remove(tmp.Name())
+	tmp, err := ioutil.TempFile("", "packer-get")
+	if err != nil {
+		return err
+	}
+	defer tmp.Close()
+	defer os.Remove(tmp.Name())
 
+	httpTransport := &http.Transport{
+		Dial:            (&net.Dialer{DualStack: true}).Dial,
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	httpClient := &http.Client{Transport: httpTransport, Timeout: 30 * time.Second}
 
-        httpTransport := &http.Transport{
-                Dial:            (&net.Dialer{DualStack: true}).Dial,
-                TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-        }
-        httpClient := &http.Client{Transport: httpTransport, Timeout: 30 * time.Second}
-        
-        res, err := httpClient.Get(src)
-        if err != nil {
-                return err
-        } else if res.Body == nil {
-                return fmt.Errorf("Empty response Body")
-        }
-        n, err := io.Copy(tmp, res.Body)
-        res.Body.Close()
-        tmp.Sync()
-        if err != nil {
-                return err
-        }
-        u, _ := url.Parse(src)
-        switch filepath.Ext(u.Path) {
-        case ".zip":
-                cr, err  := zip.NewReader(tmp, n)
-                if err != nil {
-                        return err
-                }
-                for _, f := range cr.File {
-                        name := f.Name
-                        fmt.Printf("1 %s\n", name)
-                        for idx := 0; idx < stripComponents; idx ++ {
-                                for idxCh, ch := range name {
-                                        if ch == filepath.Separator {
-                                                name = name[idxCh+1:]
-                                                break
-                                        }
-                                }
-                        }
-
-                        fmt.Printf("2 %s\n", name)
-                        if name == "." || name == "" {
-                                continue
-                        }
-                        if f.Mode().IsDir() {
-                                if err = os.MkdirAll(name, f.Mode()); err != nil {
-                                        return err
-                                }
-                        } else {
-                                cf, err := f.Open()
-                                if err != nil {
-                                        return err
-                                }
-                                path := filepath.Dir(filepath.Join(dst, name))
-                                if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
-                                        return err
-                                }
-                                df, err := os.OpenFile(filepath.Join(path, filepath.Base(name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
-                                if err != nil {
-                                        return err
-                                }
-                                _, err = io.Copy(df, cf)
-                                if err != nil {
-                                        df.Close()
-                                        cf.Close()
-                                        return err
-                                }
-                                df.Close()
-                                cf.Close()
-                        }
-                }
-        }
-        return nil
+	res, err := httpClient.Get(src)
+	if err != nil {
+		return err
+	} else if res.Body == nil {
+		return fmt.Errorf("Empty response Body")
+	}
+	n, err := io.Copy(tmp, res.Body)
+	res.Body.Close()
+	tmp.Sync()
+	if err != nil {
+		return err
+	}
+	u, _ := url.Parse(src)
+	switch filepath.Ext(u.Path) {
+	case ".zip":
+		cr, err := zip.NewReader(tmp, n)
+		if err != nil {
+			return err
+		}
+		for _, f := range cr.File {
+			name := f.Name
+			for idx := 0; idx < stripComponents; idx++ {
+				for idxCh, ch := range name {
+					if ch == filepath.Separator {
+						name = name[idxCh+1:]
+						break
+					}
+				}
+			}
+			if name == "." || name == "" {
+				continue
+			}
+			if f.Mode().IsDir() {
+				if err = os.MkdirAll(name, f.Mode()); err != nil {
+					return err
+				}
+			} else {
+				cf, err := f.Open()
+				if err != nil {
+					return err
+				}
+				path := filepath.Dir(filepath.Join(dst, name))
+				if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
+					return err
+				}
+				df, err := os.OpenFile(filepath.Join(path, filepath.Base(name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
+				if err != nil {
+					return err
+				}
+				_, err = io.Copy(df, cf)
+				if err != nil {
+					df.Close()
+					cf.Close()
+					return err
+				}
+				df.Close()
+				cf.Close()
+			}
+		}
+	}
+	return nil
 }
 
 func getGit(src string, dst string) error {
