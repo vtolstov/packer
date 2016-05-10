@@ -177,28 +177,32 @@ func getArchive(src string, dst string, stripComponents int) error {
                         if name == "." || name == "" {
                                 continue
                         }
-                        cf, err := f.Open()
-                        if err != nil {
-                                return err
-                        }
-                        
-                        path := filepath.Dir(filepath.Join(dst, name))
-                        if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
-                                       return err
-                        }
-                        
-                        df, err := os.OpenFile(filepath.Join(path, filepath.Base(name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
-                        if err != nil {
-                                return err
-                        }
-                        _, err = io.Copy(df, cf)
-                        if err != nil {
+                        if f.Mode().IsDir()() {
+                                if err = os.MkdirAll(path, f.Mode()); err != nil {
+                                        return err
+                                }
+                        } else {
+                                cf, err := f.Open()
+                                if err != nil {
+                                        return err
+                                }
+                                path := filepath.Dir(filepath.Join(dst, name))
+                                if err = os.MkdirAll(path, os.FileMode(0755)); err != nil {
+                                        return err
+                                }
+                                df, err := os.OpenFile(filepath.Join(path, filepath.Base(name)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, f.Mode())
+                                if err != nil {
+                                        return err
+                                }
+                                _, err = io.Copy(df, cf)
+                                if err != nil {
+                                        df.Close()
+                                        cf.Close()
+                                        return err
+                                }
                                 df.Close()
                                 cf.Close()
-                                return err
                         }
-                        df.Close()
-                        cf.Close()
                 }
         }
         return nil
