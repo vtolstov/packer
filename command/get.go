@@ -25,7 +25,7 @@ type GetCommand struct {
 
 func (c *GetCommand) Help() string {
 	helpText := `
-Usage: packer get [options] repository template
+Usage: packer get [options] repository
 
   Get remote repository to local dir at specified revision if it present.
   Optional run build with specific template.
@@ -36,6 +36,7 @@ Options:
   -r=string              Remote location to fetch
   -k=false               Keep destination dir after build
   -f=false               Only fetch template
+  -t=string              Template to build
   -s=int                 Strip components
 `
 
@@ -43,7 +44,7 @@ Options:
 }
 
 func (c *GetCommand) Run(args []string) int {
-	var dest, remote string
+	var dest, remote, template string
 	var keep, fetch bool
 	var strip int
 	var err error
@@ -52,6 +53,7 @@ func (c *GetCommand) Run(args []string) int {
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
 	flags.StringVar(&dest, "d", "", "d")
 	flags.StringVar(&remote, "r", "", "r")
+	flags.StringVar(&template, "t", "all", "t")
 	flags.BoolVar(&fetch, "f", false, "f")
 	flags.BoolVar(&keep, "k", false, "k")
 	flags.IntVar(&strip, "s", 0, "s")
@@ -90,7 +92,12 @@ func (c *GetCommand) Run(args []string) int {
 	}
 	switch u.Scheme {
 	default:
-		err = fmt.Errorf("scheme %q not supported", u.Scheme)
+		switch filepath.Ext(u.Path) {
+		case ".git":
+			err = getGit(remote, dest)
+		default:
+			err = fmt.Errorf("scheme %q not supported", u.Scheme)
+		}
 	case "http", "https":
 		switch filepath.Ext(u.Path) {
 		default:
@@ -123,7 +130,20 @@ func (c *GetCommand) Run(args []string) int {
 		}
 		defer os.Chdir(cwd)
 		b := &BuildCommand{c.Meta}
-		return b.Run(args)
+		if template == "all" {
+			templates, err := filepath.Glob("*.json")
+			if err != nil {
+				fmt.Printf("err: %s\n", err.Error())
+				return 2
+			}
+			for _, template = range templates {
+				if ret := b.Run(append(args, template)); ret != 0 {
+					return ret
+				}
+			}
+		} else {
+			return b.Run(args)
+		}
 	}
 	return 0
 }
