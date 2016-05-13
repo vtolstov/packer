@@ -61,12 +61,6 @@ func (c *GetCommand) Run(args []string) int {
 		return 1
 	}
 
-	args = flags.Args()
-	if len(args) != 1 {
-		flags.Usage()
-		return 1
-	}
-
 	if dest == "" {
 		dest, err = ioutil.TempDir("", "packer-get-")
 		if err != nil {
