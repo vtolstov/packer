@@ -125,14 +125,12 @@ func (c *GetCommand) Run(args []string) int {
 		b := &BuildCommand{c.Meta}
 		if template == "all" {
 			templates, err := filepath.Glob("*.json")
-			fmt.Printf("zz %+v\n", templates)
 			if err != nil {
 				fmt.Printf("err: %s\n", err.Error())
 				return 2
 			}
 			for _, template = range templates {
-				fmt.Printf("aa %+v\n", append(args, template))
-				if ret := b.Run(append(args, template)); ret != 0 {
+				if ret := b.Run([]string{template}); ret != 0 {
 					return ret
 				}
 			}
