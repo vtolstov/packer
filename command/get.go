@@ -252,11 +252,11 @@ func getGit(src string, dst string) error {
 		return err
 	}
 
-	//	if ref == "" && !hash.IsZero() {
-	//		err = repo.PullDefault()
-	//	} else {
-	err = repo.Pull(git.DefaultRemoteName, "refs/heads/"+ref)
-	//	}
+	if ref == "" && !hash.IsZero() {
+		err = repo.Pull(git.DefaultRemoteName, "refs/heads/master")
+	} else {
+		err = repo.Pull(git.DefaultRemoteName, "refs/heads/"+ref)
+	}
 	if err != nil {
 		return err
 	}
