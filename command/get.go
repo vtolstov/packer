@@ -226,13 +226,15 @@ func getArchive(src string, dst string, stripComponents int) error {
 func getGit(src string, dst string) error {
 	var remote, ref string
 
+	if strings.HasPrefix(src, "git+") {
+		src = src[4:]
+	}
+
 	u, err := url.Parse(src)
 	if err != nil {
 		return err
 	}
-	if strings.HasPrefix(src, "git+") {
-		src = src[4:]
-	}
+
 	if idx := strings.Index(u.Path, "@"); idx > 0 {
 		ref = u.Path[idx:]
 		u.Path = u.Path[:idx]
