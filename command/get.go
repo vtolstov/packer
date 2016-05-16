@@ -238,6 +238,7 @@ func getGit(src string, dst string) error {
 	}
 
 	if idx := strings.Index(u.Path, "@"); idx > 0 {
+		fmt.Printf("%s %s", u.Path[idx+1:], u.Path[:idx])
 		if len(u.Path[idx+1:]) == 20 {
 			hash = core.Hash(core.NewHash(u.Path[idx+1:]))
 		} else {
