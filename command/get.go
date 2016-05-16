@@ -16,6 +16,7 @@ import (
 	"time"
 
 	git "gopkg.in/src-d/go-git.v3"
+	core "gopkg.in/src-d/go-git.v3/core"
 )
 
 // GetCommand is a Command implementation download and build template from remote location.
@@ -225,6 +226,7 @@ func getArchive(src string, dst string, stripComponents int) error {
 
 func getGit(src string, dst string) error {
 	var remote, ref string
+	var hash core.Hash
 
 	if strings.HasPrefix(src, "git+") {
 		src = src[4:]
@@ -236,7 +238,11 @@ func getGit(src string, dst string) error {
 	}
 
 	if idx := strings.Index(u.Path, "@"); idx > 0 {
-		ref = u.Path[idx:]
+		if len(ref) == 20 {
+			hash = core.Hash(core.NewHash(u.Path[idx:]))
+		} else {
+			ref = u.Path[idx:]
+		}
 		u.Path = u.Path[:idx]
 	}
 	remote = u.String()
@@ -246,18 +252,21 @@ func getGit(src string, dst string) error {
 		return err
 	}
 
-	if ref == "" {
+	if ref == "" && !hash.IsZero() {
 		err = repo.PullDefault()
 	} else {
 		err = repo.Pull(git.DefaultRemoteName, "refs/heads/"+ref)
+
 	}
 	if err != nil {
 		return err
 	}
 
-	hash, err := repo.Remotes[git.DefaultRemoteName].Head()
-	if err != nil {
-		return err
+	if hashIsZero() {
+		hash, err = repo.Remotes[git.DefaultRemoteName].Head()
+		if err != nil {
+			return err
+		}
 	}
 
 	commit, err := repo.Commit(hash)
