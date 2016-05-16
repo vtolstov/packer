@@ -262,7 +262,7 @@ func getGit(src string, dst string) error {
 		return err
 	}
 
-	if hashIsZero() {
+	if hash.IsZero() {
 		hash, err = repo.Remotes[git.DefaultRemoteName].Head()
 		if err != nil {
 			return err
