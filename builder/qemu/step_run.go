@@ -75,6 +75,7 @@ func getCommandArgs(bootDrive string, state multistep.StateBag) ([]string, error
 	var driveArgs []string
 	var sshHostPort uint
 
+	//	defaultArgs["-nodefaults"] = ""
 	defaultArgs["-name"] = vmName
 	defaultArgs["-machine"] = fmt.Sprintf("type=%s", config.MachineType)
 	if config.Comm.Type != "none" {
@@ -140,6 +141,18 @@ func getCommandArgs(bootDrive string, state multistep.StateBag) ([]string, error
 	defaultArgs["-boot"] = bootDrive
 	defaultArgs["-m"] = "512M"
 	defaultArgs["-vnc"] = vnc
+
+	switch config.SendKeyComm {
+	case "qmp":
+		qmpPort := state.Get("qmp_port").(uint)
+		//		defaultArgs["-chardev"] = fmt.Sprintf("socket,id=charmonitor,host=127.0.0.1,port=%d,ipv4,server,nowait", qmpPort)
+		//		defaultArgs["-mon"] = "chardev=charmonitor,id=monitor,mode=control"
+		//		defaultArgs["-qmp"] = fmt.Sprintf("tcp:localhost:%d,server,nowait,nodelay", qmpPort)
+		//		defaultArgs["--monitor"] = "stdio"
+		defaultArgs["-chardev"] = fmt.Sprintf("socket,id=mon1,host=127.0.0.1,port=%d,server,nowait", qmpPort)
+		defaultArgs["-mon"] = "chardev=mon1,mode=control"
+
+	}
 
 	// Append the accelerator to the machine type if it is specified
 	if config.Accelerator != "none" {
